@@ -1,0 +1,248 @@
+import {CloseButton, Loader, Select as AutocompleteMantine} from "@mantine/core"
+import {useDebounce} from "hooks/useDebounce"
+import PropTypes from "prop-types"
+import {forwardRef, useCallback, useEffect, useMemo, useState} from "react"
+import {useTranslation} from "react-i18next"
+import {searchUsersBDSService} from "services/users"
+import {makeOptionLabelForUser, makeOptionSelectForUser} from "utils/"
+import {optionAllEmployee, optionAllMantine} from "utils/index"
+import {generalMessage} from "utils/message"
+
+export const CustomItemRender = forwardRef(({value, labelItem, label, ...etc}, ref) => (
+	<div ref={ref} {...etc}>
+		{labelItem}
+	</div>
+))
+
+CustomItemRender.propTypes = {
+	value: PropTypes.string,
+	label: PropTypes.string,
+	labelItem: PropTypes.string
+}
+
+export const AutocompleteUser = ({
+	name = "",
+	error = "",
+	hideChips = false,
+	disabled = false,
+	isMultiple = false,
+	allOption = false,
+	dropChips = false,
+	withinPortal = false,
+	onChange,
+	onFilter,
+	value = isMultiple ? [] : {},
+	placeholder = ""
+}) => {
+	const {t} = useTranslation()
+	const [allowFind, setAllowFind] = useState(false)
+	const [options, setOptions] = useState([])
+	const [selected, setSelected] = useState(isMultiple && [])
+	const [loading, setLoading] = useState(false)
+
+	useEffect(() => {
+		if (isMultiple) {
+			const selectedUser = []
+			for (const usr of value) {
+				selectedUser.push(usr)
+			}
+			setSelected(selectedUser)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [value])
+
+	const data = useMemo(() => {
+		const tempArray = options.map(option => ({
+			value: option._id,
+			label: makeOptionSelectForUser(option),
+			labelItem: makeOptionLabelForUser(option)
+		}))
+		if (!isMultiple) {
+			const selectedUser = tempArray.find(item => item.value === value._id)
+			if (!selectedUser) {
+				tempArray.push({
+					value: value._id,
+					label: makeOptionSelectForUser(value),
+					labelItem: makeOptionLabelForUser(value)
+				})
+			}
+		}
+		if (allOption && !tempArray.find(item => item.value === "")) {
+			tempArray.unshift(optionAllMantine)
+		}
+		return tempArray
+	}, [allOption, isMultiple, options, value])
+
+	const searchUsersDebounce = useDebounce(async query => {
+		setLoading(true)
+		setOptions([])
+		const response = await searchUsersBDSService(query)
+		setOptions(response.data)
+		setLoading(false)
+	}, 500)
+
+	const handleOnDeleteUser = useCallback(
+		item => {
+			const result = selected.filter(ar => ar._id !== item._id)
+			setSelected(result)
+			return onChange && onChange(result)
+		},
+		[onChange, selected]
+	)
+
+	return (
+		<div name={name}>
+			{isMultiple ? (
+				<div className="flex flex-col gap-4">
+					<AutocompleteMantine
+						withinPortal={withinPortal}
+						transitionDuration={80}
+						transitionTimingFunction="ease"
+						placeholder={placeholder}
+						sx={{width: 400}}
+						maxDropdownHeight={350}
+						data={data}
+						error={error}
+						value=""
+						disabled={disabled}
+						nothingFound={
+							loading ? <Loader variant="dots" /> : generalMessage.nothingFound()
+						}
+						onDropdownOpen={() => setAllowFind(true)}
+						onDropdownClose={() => setAllowFind(false)}
+						defaultValue=""
+						onBlur={() => {
+							data.splice(0, data.length)
+						}}
+						onSearchChange={event => {
+							if (onFilter) {
+								onFilter(event)
+							}
+							if (
+								!event ||
+								event === "All" ||
+								event === "전체" ||
+								!allowFind ||
+								data.find(item => item.label === event)
+							) {
+								return
+							}
+							searchUsersDebounce(event)
+						}}
+						clearable
+						onChange={event => {
+							if (!event) return
+							const option = options.find(item => item._id === event)
+							if (!selected.find(item => item._id === event)) {
+								setSelected(prev => {
+									prev.push(option)
+									return prev
+								})
+							}
+							data.splice(0, data.length)
+							return onChange && onChange(selected)
+						}}
+						itemComponent={CustomItemRender}
+						searchable
+					/>
+					{!hideChips && selected && Array.isArray(selected) && (
+						<div
+							className={`flex ${!dropChips ? "flex-row" : "flex-col"} gap-2 flex-wrap`}
+						>
+							{selected.map(item => (
+								<div
+									className={`${
+										!dropChips && "bg-gray-jira"
+									} h-fit w-fit px-2 py-2 rounded-full flex items-center gap-1`}
+									key={item._id}
+								>
+									<span>{item && makeOptionSelectForUser(item)}</span>
+									<CloseButton
+										onClick={() => handleOnDeleteUser(item)}
+										size="xs"
+										iconSize={14}
+										title={t("Remove this user")}
+									/>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+			) : (
+				<AutocompleteMantine
+					transitionDuration={80}
+					transitionTimingFunction="ease"
+					placeholder={placeholder}
+					sx={{width: 400}}
+					maxDropdownHeight={350}
+					data={data}
+					withinPortal={withinPortal}
+					disabled={disabled}
+					nothingFound={
+						loading ? <Loader variant="dots" /> : generalMessage.nothingFound()
+					}
+					onDropdownOpen={() => setAllowFind(true)}
+					onDropdownClose={() => setAllowFind(false)}
+					onBlur={() => {
+						const currentSelected = data.find(item => item.value === selected)
+						data.splice(0, data.length)
+						if (currentSelected) {
+							data.push(currentSelected)
+						}
+						if (allOption && !data.find(item => item.value === "")) {
+							data.unshift(optionAllMantine)
+						}
+					}}
+					defaultValue=""
+					onSearchChange={event => {
+						if (onFilter) {
+							onFilter(event)
+						}
+						if (
+							!event ||
+							event === "All" ||
+							event === "전체" ||
+							!allowFind ||
+							data.find(item => item.label === event)
+						) {
+							return
+						}
+						searchUsersDebounce(event)
+					}}
+					onChange={event => {
+						const option = options.find(item => item._id === event)
+						setSelected(!event ? optionAllEmployee._id : option._id)
+						const currentSelected = data.find(item => item.value === selected)
+						data.splice(0, data.length)
+						if (currentSelected) {
+							data.push(currentSelected)
+						}
+						if (allOption && !data.find(item => item.value === "")) {
+							data.unshift(optionAllMantine)
+						}
+						return onChange && onChange(!event ? optionAllEmployee : option)
+					}}
+					value={value ? value._id : selected}
+					itemComponent={CustomItemRender}
+					searchable
+				/>
+			)}
+		</div>
+	)
+}
+
+AutocompleteUser.propTypes = {
+	onChange: PropTypes.func,
+	onFilter: PropTypes.func,
+	value: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+	// options: PropTypes.array,
+	disabled: PropTypes.bool,
+	allOption: PropTypes.bool,
+	isMultiple: PropTypes.bool,
+	placeholder: PropTypes.string,
+	dropChips: PropTypes.bool,
+	hideChips: PropTypes.bool,
+	withinPortal: PropTypes.bool,
+	error: PropTypes.string,
+	name: PropTypes.string
+}
