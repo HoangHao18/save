@@ -1,0 +1,69 @@
+import { MultiSelect, Paper } from '@mantine/core'
+import { SearchDropdown } from 'components/SearchDropdown'
+import React, { useState } from 'react'
+const sourceLanguages = [
+  { _id: '123', name: 'English', acr: 'en' },
+  { _id: '234', name: 'Korea', acr: 'kr' },
+  { _id: '456', name: 'Chinese', acr: 'cn' }
+]
+
+const targetLanguages = [
+  { _id: '123', name: 'English', acr: 'en' },
+  { _id: '234', name: 'Korea', acr: 'kr' },
+  { _id: '456', name: 'Chinese', acr: 'cn' }
+]
+const data = [
+  { value: 'react', label: 'React' },
+  { value: 'ng', label: 'Angular' },
+  { value: 'svelte', label: 'Svelte' },
+  { value: 'vue', label: 'Vue' },
+  { value: 'riot', label: 'Riot' },
+  { value: 'next', label: 'Next.js' },
+  { value: 'blitz', label: 'Blitz.js' }
+]
+
+export const LanguageSetting = () => {
+  const [choseLanguages, setChoseLanguage] = useState([])
+  return (
+    <div>
+      <Paper
+        shadow="xs"
+        className="p-6"
+        //style={{ height: `100px` }}
+        //className="relative overflow-y-auto p-5"
+      >
+        <div className="flex flex-row gap-6">
+          <MultiSelect
+            data={data}
+            label="Choose your source languages: "
+            className="w-[20%]"
+          />
+          <div>list language</div>
+        </div>
+      </Paper>
+      <Paper shadow="xs" className="p-6">
+        <div className="flex flex-row gap-6">
+          {/* <SearchDropdown
+            placeholder="search"
+            multiSelect
+            allowAddNew
+            name="Language"
+            options={labels}
+            values={values[LABEL]}
+            onChange={e => setChoseLanguage(LABEL, e, false)}
+          /> */}
+          <SearchDropdown
+            searchable={false}
+            name="isUsed"
+            placeholder=""
+            options={isUsedOptionSearch}
+            values={isUsed}
+            onChange={e => handleOnChangeSearch('isUsed', e)}
+          />
+          <div>list language</div>
+        </div>
+      </Paper>
+    </div>
+  )
+}
+export default LanguageSetting
