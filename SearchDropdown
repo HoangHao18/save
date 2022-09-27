@@ -1,0 +1,185 @@
+import {MultiSelect, Select, Group, Text} from "@mantine/core"
+import {t} from "i18next"
+import PropTypes from "prop-types"
+import {forwardRef, useCallback, useMemo} from "react"
+import {
+	optionAllMantine,
+	removeUndefinedValueFromObject,
+	nothingFoundHelper
+} from "utils/"
+const SelectItem = forwardRef(({value, label, group, ...others}, ref) => (
+	<div ref={ref} {...others} key={value}>
+		<Group noWrap>
+			<div>
+				<Text size="sm">{t(label)}</Text>
+			</div>
+		</Group>
+	</div>
+))
+
+SelectItem.propTypes = {
+	value: PropTypes.string.isRequired,
+	label: PropTypes.oneOfType([PropTypes.string.isRequired, PropTypes.func]),
+	group: PropTypes.string
+}
+
+export const SearchDropdown = ({
+	sx = {},
+	classNames = {},
+	className = "",
+	loading = false,
+	withinPortal = false,
+	name = "",
+	values,
+	onChange,
+	options = [],
+	optionsGroup = [],
+	allowAddNew = false,
+	multiSelect = false,
+	isGroup = false,
+	placeholder = "Please type to search...",
+	disabled = false,
+	searchable = true,
+	configGroup: {parentID, groupName} = {
+		parentID: "_id",
+		groupName: "name"
+	},
+	config: {id, searchName} = {
+		searchName: "name",
+		id: "_id"
+	},
+	allOption = false
+}) => {
+	const findGroupName = useCallback(
+		option => {
+			const findParentCategory = optionsGroup.find(
+				value => option[parentID] === value[id]
+			)
+			if (findParentCategory) {
+				return findParentCategory[groupName] ?? " "
+			}
+			return " "
+		},
+		[groupName, id, optionsGroup, parentID]
+	)
+	const data = useMemo(
+		() => {
+			const newData = options.map(option => {
+				const newOption = {
+					value: option[id],
+					label: option[searchName],
+					...(isGroup && {
+						group: findGroupName(option)
+					})
+				}
+				return removeUndefinedValueFromObject(newOption)
+			})
+			if (!multiSelect && allOption) {
+				newData.unshift({
+					value: optionAllMantine.value,
+					label: optionAllMantine.label,
+					...(isGroup && {
+						group: " "
+					})
+				})
+			}
+			return newData
+		},
+		// .map(item => (item.value === "" ? {...item, group: " "} : item))
+		[allOption, findGroupName, id, isGroup, multiSelect, options, searchName]
+	)
+
+	return (
+		<>
+			{multiSelect ? (
+				<MultiSelect
+					className={className}
+					classNames={classNames}
+					sx={sx}
+					name={name}
+					nothingFound={nothingFoundHelper(loading)}
+					data={data}
+					placeholder={placeholder}
+					searchable={searchable}
+					creatable={allowAddNew}
+					clearable
+					itemComponent={SelectItem}
+					getCreateLabel={query => `+ Create ${query}`}
+					shouldCreate={(query, selectItem) => {
+						const isDataIncludesQuery = !selectItem.some(object => object.label === query)
+						const isValuesIncludesQuery = !values.some(string => string === query)
+						const result = isDataIncludesQuery && isValuesIncludesQuery
+						return result
+					}}
+					maxDropdownHeight={400}
+					onCreate={query => {
+						data.push({value: query, label: query})
+						onChange([...values, query])
+					}}
+					value={values}
+					onChange={e => onChange(e !== null ? e : values)}
+					disabled={disabled}
+					clearSearchOnBlur
+					clearSearchOnChange
+					withinPortal={withinPortal}
+				/>
+			) : (
+				<Select
+					className={className}
+					classNames={classNames}
+					sx={sx}
+					itemComponent={SelectItem}
+					name={name}
+					nothingFound={nothingFoundHelper(loading)}
+					data={data}
+					searchable={searchable}
+					placeholder={placeholder}
+					creatable={allowAddNew}
+					getCreateLabel={query => `+ Create ${query}`}
+					maxDropdownHeight={400}
+					withinPortal={withinPortal}
+					value={values}
+					disabled={disabled}
+					onChange={e => {
+						onChange(e !== null ? e : values)
+					}}
+				/>
+			)}
+		</>
+	)
+}
+
+const config = PropTypes.shape({
+	id: PropTypes.string,
+	searchName: PropTypes.string,
+	groupName: PropTypes.string
+})
+
+const configGroup = PropTypes.shape({
+	parentID: PropTypes.string,
+	groupName: PropTypes.string
+})
+
+SearchDropdown.propTypes = {
+	name: PropTypes.string,
+	placeholder: PropTypes.string,
+	values: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
+	onChange: PropTypes.func,
+	options: PropTypes.array,
+	loading: PropTypes.bool,
+	optionsGroup: PropTypes.array,
+	allowAddNew: PropTypes.bool,
+	multiSelect: PropTypes.bool,
+	isGroup: PropTypes.bool,
+	disabled: PropTypes.bool,
+	config,
+	configGroup,
+	sx: PropTypes.object,
+	classNames: PropTypes.object,
+	className: PropTypes.string,
+	allOption: PropTypes.bool,
+	searchable: PropTypes.bool,
+	withinPortal: PropTypes.bool
+}
+
+SearchDropdown.default = {}
